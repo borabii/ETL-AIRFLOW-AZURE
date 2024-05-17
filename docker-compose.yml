@@ -74,6 +74,7 @@ x-airflow-common:
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/spark-jobs:/opt/airflow/spark-jobs
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
@@ -114,6 +115,34 @@ services:
       retries: 50
       start_period: 30s
     restart: always
+  spark-master:
+    image: andreper/spark-master:3.0.0
+    container_name: spark-master
+    ports:
+      - 9090:9090
+      - 7077:7077
+    volumes:
+      - ./data:/data
+      - ./src:/src
+    environment:
+    - SPARK_MASTER_PORT=7077
+    - SPARK_MASTER_WEBUI_PORT=9090
+    - SPARK_EXTRA_CONF='spark.rpc.message.maxSize=512m,spark.network.timeout=800s'
+  spark-worker-1:
+    image: andreper/spark-worker:3.0.0
+    container_name: spark-worker-1
+    environment:
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_EXTRA_CONF='spark.rpc.message.maxSize=512m,spark.network.timeout=800s'
+    ports:
+      - 9091:9091
+    volumes:
+      - ./data:/data
+      - ./src:/src
+    depends_on:
+      - spark-master
 
   airflow-webserver:
     <<: *airflow-common
